@@ -52,14 +52,50 @@ Caching stores frequently accessed data closer to the consumer to reduce latency
 
 ---
 
-## Buffering
+## 🗄️ Buffering Strategies
 
-Buffering temporarily holds data in transit to smooth out speed mismatches or batch operations.
+Buffering holds data temporarily to smooth the speed mismatch between a fast producer and a slow consumer, or to batch small operations into fewer, larger ones.
 
-| Type | Description | Example Problem |
+---
+
+### 📦 By Flush Trigger
+
+*What causes the buffer to empty.*
+
+| Type | Description | Example |
 |---|---|---|
-| **Size-Based Flush** | Buffer flushes when it reaches a fixed number of entries | [Log Writer](src/logWriter.js) — log messages accumulate and flush to disk when the buffer reaches 5 entries |
-| **Time-Based Flush** | Buffer flushes on a fixed timer regardless of how full it is | [Log Writer](src/logWriter.js) — a 2-second interval flushes any remaining messages so nothing is stuck in the buffer indefinitely |
+| **Size-Based Flush** | Flushes when the buffer reaches a fixed number of entries | [LogWriter](src/logWriter.js) — accumulates log messages in an array; once 5 entries are buffered the batch is written to disk in a single call, avoiding a syscall on every message |
+| **Time-Based Flush** | Flushes on a fixed interval regardless of how full the buffer is | [LogWriter](src/logWriter.js) — a 2-second `setInterval` fires and writes whatever is buffered, so messages are never silently stuck in memory between size-based flushes |
+| **Threshold Flush** | Flushes when a percentage of capacity is reached (e.g. 75% full) | 💡 *Suggested: network packet buffer — flushes at 75% capacity to avoid hitting the hard limit under burst traffic, trading slightly smaller batches for lower drop risk* |
+| **Explicit / Manual Flush** | Caller decides when to flush — nothing automatic | [LogWriter](src/logWriter.js) — the public `flush()` method lets callers drain the buffer on demand; also called inside `close()` to guarantee no messages are lost on shutdown |
+| **Event-Based Flush** | Flushes when a specific event occurs (e.g. newline character, end of request) | 💡 *Suggested: terminal output buffer — accumulates characters as they arrive and flushes the entire line to the display when a `\n` is detected, rather than rendering one character at a time* |
+
+---
+
+### 🔁 By Structure
+
+*How the buffer is physically organised in memory.*
+
+| Type | Description | Example |
+|---|---|---|
+| **Linear Buffer** | Simple array or queue — fills from one end, drains from the other | [LogWriter](src/logWriter.js) — messages are pushed onto `this.buffer`; on flush the array is joined into a single string and reset to `[]`, processing entries in arrival order |
+| **Ring Buffer (Circular Buffer)** | Fixed-size structure where new data overwrites the oldest when full — used in logs and streams | 💡 *Suggested: sensor telemetry — records the last 100 temperature readings in a fixed-size array; the 101st reading overwrites the oldest slot so memory usage stays constant* |
+| **Double Buffer** | Two buffers alternate — one fills while the other is consumed, eliminating wait time | 💡 *Suggested: game engine — writes the next frame's draw calls into buffer B while the GPU reads the completed frame from buffer A; pointers swap when the GPU finishes so rendering never stalls* |
+| **Triple Buffer** | Extends double buffering with a third slot so the producer never has to wait for the consumer — common in GPU rendering | 💡 *Suggested: video encoder — one buffer is being encoded, one is being sent over the network, and one is being written by the camera; a brief encoding slowdown never stalls the camera* |
+| **Sliding Window Buffer** | Keeps a moving window of recent data — older data outside the window is discarded | 💡 *Suggested: network flow monitor — tracks packet counts over the last 60 seconds; every second the oldest bucket drops off the back and a fresh bucket is added to the front* |
+
+---
+
+### ✍️ By Write Behaviour
+
+*How writes are handled before flushing.*
+
+| Type | Description | Example |
+|---|---|---|
+| **Write Buffer / Write Coalescing** | Batches multiple small writes into one larger write — reduces I/O syscall overhead | [LogWriter](src/logWriter.js) — `this.buffer.push(message)` accumulates entries; a single `this.writer(this.filePath, lines)` call drains them all, turning many small writes into one |
+| **Write-Back Buffer** | Writes are acknowledged immediately from the buffer; the actual write to the backing store happens later | 💡 *Suggested: note-taking app — keystrokes land in an in-memory buffer and the UI confirms the save instantly; the expensive disk write happens asynchronously in the background* |
+| **Copy-on-Write Buffer** | Buffer is shared until a write occurs, at which point a private copy is made | 💡 *Suggested: process forking — parent and child share the same memory pages after `fork()`; the OS silently copies only the pages that either process writes to, avoiding an upfront full copy* |
+| **Journaling Buffer** | Writes are logged to a sequential buffer first for crash recovery before being applied to the target | 💡 *Suggested: database write-ahead log — every `INSERT` is appended to a WAL buffer before touching data pages; on crash, recovery replays the journal from the last checkpoint* |
 
 ---
 
