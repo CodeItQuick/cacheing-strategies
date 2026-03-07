@@ -1,13 +1,21 @@
 const { LogWriter } = require('../src/logWriter');
+const { SizeBasedFlushBuffer } = require('../src/buffer/sizeBasedFlushBuffer');
 
 function makeWriter(bufferSize = 5, flushIntervalMs = 60000) {
   const written = [];
-  const mockWriter = (filePath, data) => written.push({ filePath, data });
-  const logWriter = new LogWriter('app.log', { bufferSize, flushIntervalMs, writer: mockWriter });
-  return { logWriter, written };
+  const writeBuffer = new SizeBasedFlushBuffer(
+    (items) => items.forEach((item) => written.push(item)),
+    { bufferSize: 1 },
+  );
+  const logWriter = new LogWriter('app.log', {
+    bufferSize,
+    flushIntervalMs,
+    writer: (filePath, data) => writeBuffer.add({ filePath, data }),
+  });
+  return { logWriter, writeBuffer, written };
 }
 
-describe('LogWriter', () => {
+describe('LogWriter (size-based flush)', () => {
   afterEach(() => {
     jest.useRealTimers();
   });
@@ -40,12 +48,12 @@ describe('LogWriter', () => {
     });
 
     test('resets buffer after flush', () => {
-      const { logWriter, written } = makeWriter();
+      const { logWriter, writeBuffer } = makeWriter();
 
       for (let i = 0; i < 5; i++) logWriter.log(`msg${i}`);
       for (let i = 0; i < 4; i++) logWriter.log(`msg${i + 5}`);
 
-      expect(written.length).toBe(1);
+      expect(writeBuffer.size).toBe(0);
       expect(logWriter.buffer.length).toBe(4);
       logWriter.close();
     });
