@@ -95,7 +95,7 @@ Buffering holds data temporarily to smooth the speed mismatch between a fast pro
 | **Write Buffer / Write Coalescing** | Batches multiple small writes into one larger write — reduces I/O syscall overhead | [LogWriter](src/logWriter.js) — `this.buffer.push(message)` accumulates entries; a single `this.writer(this.filePath, lines)` call drains them all, turning many small writes into one |
 | **Write-Back Buffer** | Writes are acknowledged immediately from the buffer; the actual write to the backing store happens later | 💡 *Suggested: note-taking app — keystrokes land in an in-memory buffer and the UI confirms the save instantly; the expensive disk write happens asynchronously in the background* |
 | **Copy-on-Write Buffer** | Buffer is shared until a write occurs, at which point a private copy is made | 💡 *Suggested: process forking — parent and child share the same memory pages after `fork()`; the OS silently copies only the pages that either process writes to, avoiding an upfront full copy* |
-| **Journaling Buffer** | Writes are logged to a sequential buffer first for crash recovery before being applied to the target | 💡 *Suggested: database write-ahead log — every `INSERT` is appended to a WAL buffer before touching data pages; on crash, recovery replays the journal from the last checkpoint* |
+| **Journaling Buffer** | Writes are logged to a sequential buffer first for crash recovery before being applied to the target | [JournalingBuffer](src/buffer/journalingBuffer.js) — append-only log with a `checkpointIndex`; `checkpoint()` applies pending entries and advances the marker, `recover()` returns all entries since the last checkpoint without advancing it; demonstrated in [WriteAheadLog](src/writeAheadLog.js) |
 
 ---
 
