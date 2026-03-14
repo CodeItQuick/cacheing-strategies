@@ -1,8 +1,9 @@
 const {GpuRenderer} = require('../src/gpuRenderer');
 const {DoubleBufferStrategy} = require("../src/gpuRendererBufferStrategies/doubleBufferStrategy");
 const {TripleBufferStrategy} = require("../src/gpuRendererBufferStrategies/tripleBufferStrategy");
+const {JournalingBufferStrategy} = require("../src/gpuRendererBufferStrategies/journalingBufferStrategy");
 
-[TripleBufferStrategy, DoubleBufferStrategy].forEach((BufferStrategyClass) => {
+[TripleBufferStrategy, DoubleBufferStrategy, JournalingBufferStrategy].forEach((BufferStrategyClass) => {
     describe(`GpuRenderer with ${BufferStrategyClass.name}`, () => {
         let buffer;
 
