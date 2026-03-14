@@ -1,8 +1,8 @@
 const { TripleBuffer } = require('./buffer/tripleBuffer');
 
 class GpuRenderer {
-  constructor() {
-    this.buffer = new TripleBuffer();
+  constructor(buffer = new TripleBuffer()) {
+    this.buffer = buffer;
     this.frameCount = 0;
   }
 

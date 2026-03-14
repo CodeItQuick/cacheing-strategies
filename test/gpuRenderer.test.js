@@ -1,25 +1,28 @@
 const { GpuRenderer } = require('../src/gpuRenderer');
+const {TripleBuffer} = require("../src/buffer/tripleBuffer");
 
 describe('GpuRenderer', () => {
   describe('submitFrame', () => {
     test('stages draw calls in the ready buffer after presenting', () => {
-      const gpu = new GpuRenderer();
+      const tripleBuffer = new TripleBuffer();
+      const gpu = new GpuRenderer(tripleBuffer);
 
       gpu.submitFrame(['clearScreen', 'drawPlayer']);
 
-      expect(gpu.buffer.readySize).toBe(2);
+      expect(tripleBuffer.readySize()).toBe(2);
     });
 
     test('clears the write buffer after presenting', () => {
-      const gpu = new GpuRenderer();
+      const tripleBuffer = new TripleBuffer();
+      const gpu = new GpuRenderer(tripleBuffer);
 
       gpu.submitFrame(['drawSprite']);
 
-      expect(gpu.buffer.writeSize).toBe(0);
+      expect(tripleBuffer.writeSize()).toBe(0);
     });
 
     test('increments frameCount on each submission', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['drawA']);
       gpu.submitFrame(['drawB']);
@@ -30,13 +33,13 @@ describe('GpuRenderer', () => {
 
   describe('render', () => {
     test('returns an empty array when no frame has been submitted', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       expect(gpu.render()).toEqual([]);
     });
 
     test('returns the draw calls from the submitted frame', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['clearScreen', 'drawPlayer', 'drawEnemy']);
 
@@ -44,7 +47,7 @@ describe('GpuRenderer', () => {
     });
 
     test('returns draw calls in submission order', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['first', 'second', 'third']);
 
@@ -56,7 +59,7 @@ describe('GpuRenderer', () => {
     });
 
     test('returns an empty array when the same frame is rendered twice with no new submission', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['drawSprite']);
       gpu.render();
@@ -67,7 +70,7 @@ describe('GpuRenderer', () => {
 
   describe('non-blocking producer', () => {
     test('consumer always gets the most recently submitted frame', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['stale frame']);
       gpu.submitFrame(['latest frame']);
@@ -76,7 +79,7 @@ describe('GpuRenderer', () => {
     });
 
     test('skipped frames are overwritten — only the latest is kept in the ready slot', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['frame1: drawBackground']);
       gpu.submitFrame(['frame2: drawBackground']);
@@ -86,19 +89,20 @@ describe('GpuRenderer', () => {
     });
 
     test('producer can submit a new frame while the previous frame is still on display', () => {
-      const gpu = new GpuRenderer();
+      const tripleBuffer = new TripleBuffer();
+      const gpu = new GpuRenderer(tripleBuffer);
 
       gpu.submitFrame(['frame1: clearScreen', 'frame1: drawPlayer']);
       gpu.render();
 
       gpu.submitFrame(['frame2: clearScreen', 'frame2: drawPlayer']);
 
-      expect(gpu.buffer.displaySize).toBe(2);
-      expect(gpu.buffer.readySize).toBe(2);
+      expect(tripleBuffer.displaySize()).toBe(2);
+      expect(tripleBuffer.readySize()).toBe(2);
     });
 
     test('producer can continue submitting after the consumer renders', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['frame1']);
       gpu.render();
@@ -111,7 +115,7 @@ describe('GpuRenderer', () => {
 
   describe('submit/render cycle', () => {
     test('each render returns only the draw calls from the most recent submit', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['drawBackground', 'drawPlayer']);
       const first = gpu.render();
@@ -124,7 +128,7 @@ describe('GpuRenderer', () => {
     });
 
     test('frameCount tracks all submitted frames regardless of whether they were rendered', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['frame1']);
       gpu.submitFrame(['frame2']);
@@ -137,13 +141,13 @@ describe('GpuRenderer', () => {
 
   describe('frameCount', () => {
     test('is 0 initially', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       expect(gpu.frameCount).toBe(0);
     });
 
     test('increments for each submitted frame', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['drawA']);
       expect(gpu.frameCount).toBe(1);
@@ -153,7 +157,7 @@ describe('GpuRenderer', () => {
     });
 
     test('does not increment on render', () => {
-      const gpu = new GpuRenderer();
+      const gpu = new GpuRenderer(new TripleBuffer());
 
       gpu.submitFrame(['drawA']);
       gpu.render();
