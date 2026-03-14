@@ -1,5 +1,5 @@
-const { BufferStrategy } = require('./bufferStrategy');
-const { TripleBuffer } = require('./tripleBuffer');
+const { BufferStrategy } = require('../buffer/bufferStrategy');
+const { TripleBuffer } = require('../buffer/tripleBuffer');
 
 class TripleBufferStrategy extends BufferStrategy {
   constructor() {
