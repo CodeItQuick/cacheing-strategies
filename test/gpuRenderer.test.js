@@ -2,8 +2,9 @@ const {GpuRenderer} = require('../src/gpuRenderer');
 const {DoubleBufferStrategy} = require("../src/tripleBufferAdapters/doubleBufferStrategy");
 const {TripleBufferStrategy} = require("../src/tripleBufferAdapters/tripleBufferStrategy");
 const {JournalingBufferStrategy} = require("../src/tripleBufferAdapters/journalingBufferStrategy");
+const {SizeBasedBufferStrategy} = require("../src/tripleBufferAdapters/sizeBasedBufferStrategy");
 
-[TripleBufferStrategy, DoubleBufferStrategy, JournalingBufferStrategy].forEach((BufferStrategyClass) => {
+[TripleBufferStrategy, DoubleBufferStrategy, JournalingBufferStrategy, SizeBasedBufferStrategy].forEach((BufferStrategyClass) => {
     describe(`GpuRenderer with ${BufferStrategyClass.name}`, () => {
         let buffer;
 

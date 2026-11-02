@@ -1,8 +1,9 @@
 const { LogWriter } = require('../src/logWriter');
 const { SizeBasedFlushBuffer } = require('../src/buffer/sizeBasedFlushBuffer');
-const { TripleBufferStrategy } = require('../src/tripleBufferAdapters/tripleBufferStrategy');
-const { DoubleBufferStrategy } = require('../src/tripleBufferAdapters/doubleBufferStrategy');
-const { JournalingBufferStrategy } = require('../src/tripleBufferAdapters/journalingBufferStrategy');
+const { SizeBasedBufferStrategyAdapter } = require('../src/sizeBasedBufferAdapters/sizeBasedBufferStrategyAdapter');
+const { TripleBufferAdapter } = require('../src/sizeBasedBufferAdapters/tripleBufferAdapter');
+const { DoubleBufferAdapter } = require('../src/sizeBasedBufferAdapters/doubleBufferAdapter');
+const { JournalingBufferAdapter } = require('../src/sizeBasedBufferAdapters/journalingBufferAdapter');
 
 function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
   const written = [];
@@ -19,15 +20,15 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
   return { logWriter, writeBuffer, written };
 }
 
-[TripleBufferStrategy, DoubleBufferStrategy, JournalingBufferStrategy].forEach((BufferStrategyClass) => {
-  describe(`LogWriter (size-based flush) with ${BufferStrategyClass.name}`, () => {
+[SizeBasedBufferStrategyAdapter, TripleBufferAdapter, DoubleBufferAdapter, JournalingBufferAdapter].forEach((AdapterClass) => {
+  describe(`LogWriter (size-based flush) with ${AdapterClass.name}`, () => {
     afterEach(() => {
       jest.useRealTimers();
     });
 
     describe('buffering', () => {
       test('does not write before buffer is full', () => {
-        const { logWriter, written } = makeWriter(5, 60000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 60000, new AdapterClass(5));
 
         logWriter.log('a');
         logWriter.log('b');
@@ -39,7 +40,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
       });
 
       test('flushes when buffer reaches capacity', () => {
-        const { logWriter, written } = makeWriter(5, 60000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 60000, new AdapterClass(5));
 
         logWriter.log('a');
         logWriter.log('b');
@@ -53,7 +54,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
       });
 
       test('resets buffer after flush', () => {
-        const { logWriter, writeBuffer } = makeWriter(5, 60000, new BufferStrategyClass());
+        const { logWriter, writeBuffer } = makeWriter(5, 60000, new AdapterClass(5));
 
         for (let i = 0; i < 5; i++) logWriter.log(`msg${i}`);
         for (let i = 0; i < 4; i++) logWriter.log(`msg${i + 5}`);
@@ -64,7 +65,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
       });
 
       test('flushes multiple times as buffer fills repeatedly', () => {
-        const { logWriter, written } = makeWriter(5, 60000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 60000, new AdapterClass(5));
 
         for (let i = 0; i < 10; i++) logWriter.log(`msg${i}`);
 
@@ -75,7 +76,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
 
     describe('flush', () => {
       test('does nothing when buffer is empty', () => {
-        const { logWriter, written } = makeWriter(5, 60000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 60000, new AdapterClass(5));
 
         logWriter.flush();
 
@@ -84,7 +85,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
       });
 
       test('writes buffered messages to the correct file path', () => {
-        const { logWriter, written } = makeWriter(5, 60000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 60000, new AdapterClass(5));
 
         logWriter.log('hello');
         logWriter.flush();
@@ -94,7 +95,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
       });
 
       test('writes all buffered messages as newline-separated lines', () => {
-        const { logWriter, written } = makeWriter(5, 60000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 60000, new AdapterClass(5));
 
         logWriter.log('x');
         logWriter.log('y');
@@ -109,7 +110,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
     describe('timer flush', () => {
       test('flushes automatically after interval', () => {
         jest.useFakeTimers();
-        const { logWriter, written } = makeWriter(5, 2000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 2000, new AdapterClass(5));
 
         logWriter.log('a');
         logWriter.log('b');
@@ -124,7 +125,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
 
       test('does not flush on timer when buffer is empty', () => {
         jest.useFakeTimers();
-        const { logWriter, written } = makeWriter(5, 2000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 2000, new AdapterClass(5));
 
         jest.advanceTimersByTime(2000);
 
@@ -135,7 +136,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
 
     describe('close', () => {
       test('flushes remaining messages on close', () => {
-        const { logWriter, written } = makeWriter(5, 60000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 60000, new AdapterClass(5));
 
         logWriter.log('final');
         logWriter.close();
@@ -146,7 +147,7 @@ function makeWriter(bufferSize = 5, flushIntervalMs = 60000, bufferStrategy) {
 
       test('stops the timer on close', () => {
         jest.useFakeTimers();
-        const { logWriter, written } = makeWriter(5, 2000, new BufferStrategyClass());
+        const { logWriter, written } = makeWriter(5, 2000, new AdapterClass(5));
 
         logWriter.log('a');
         logWriter.close();
